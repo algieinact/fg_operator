@@ -8,7 +8,7 @@ class MainMenuScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      appBar: const CustomNavbar(showBackButton: false, username: 'user1ky'),
+      appBar: const CustomNavbar(showBackButton: false),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -49,10 +49,10 @@ class MainMenuScreen extends StatelessWidget {
             Expanded(
               child: Column(
                 children: [
-                  // Posting F/G Card
+                  // Store FG Card
                   _buildMenuCard(
                     context,
-                    title: 'Posting FG',
+                    title: 'Store FG',
                     icon: Icons.inventory_2,
                     iconColor: const Color(0xFFF59E0B), // Orange
                     onTap: () {
@@ -61,7 +61,7 @@ class MainMenuScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Pulling Card
+                  // Pulling FG Card
                   _buildMenuCard(
                     context,
                     title: 'Pulling FG',
@@ -70,7 +70,7 @@ class MainMenuScreen extends StatelessWidget {
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Posting F/G feature coming soon'),
+                          content: Text('Pulling FG feature coming soon'),
                         ),
                       );
                     },

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import '../services/user_manager.dart';
 
 class CustomNavbar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBackButton;
   final VoidCallback? onBackPressed;
-  final String username;
+  final VoidCallback? onLogoutSuccess;
 
   const CustomNavbar({
     super.key,
     this.showBackButton = true,
     this.onBackPressed,
-    this.username = 'user1ky',
+    this.onLogoutSuccess,
   });
 
   @override
@@ -20,13 +21,12 @@ class CustomNavbar extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: Colors.white,
       elevation: 0,
-      leading:
-          showBackButton
-              ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                onPressed: onBackPressed ?? () => Navigator.pop(context),
-              )
-              : null,
+      leading: showBackButton
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black87),
+              onPressed: onBackPressed ?? () => Navigator.pop(context),
+            )
+          : null,
       automaticallyImplyLeading: false,
       title: Row(
         children: [
@@ -48,34 +48,33 @@ class CustomNavbar extends StatelessWidget implements PreferredSizeWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  username,
+                  UserManager.username,
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
             ),
-            itemBuilder:
-                (BuildContext context) => [
-                  const PopupMenuItem<String>(
-                    value: 'profile',
-                    child: Row(
-                      children: [
-                        Icon(Icons.person, color: Color(0xFF6B7280)),
-                        SizedBox(width: 8),
-                        Text('Profile'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'logout',
-                    child: Row(
-                      children: [
-                        Icon(Icons.logout, color: Color(0xFF6B7280)),
-                        SizedBox(width: 8),
-                        Text('Logout'),
-                      ],
-                    ),
-                  ),
-                ],
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person, color: Color(0xFF6B7280)),
+                    SizedBox(width: 8),
+                    Text('Profile'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Color(0xFF6B7280)),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
             onSelected: (String value) {
               switch (value) {
                 case 'profile':
@@ -102,11 +101,13 @@ class CustomNavbar extends StatelessWidget implements PreferredSizeWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Username: $username'),
+              _buildProfileRow('Username', UserManager.username),
               const SizedBox(height: 8),
-              const Text('Role: Operator'),
+              _buildProfileRow('Name', UserManager.name),
               const SizedBox(height: 8),
-              const Text('Department: Production'),
+              _buildProfileRow('Role', UserManager.roleName),
+              const SizedBox(height: 8),
+              _buildProfileRow('Department', 'Production'),
             ],
           ),
           actions: [
@@ -117,6 +118,24 @@ class CustomNavbar extends StatelessWidget implements PreferredSizeWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildProfileRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            '$label:',
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ),
+        Expanded(
+          child: Text(value),
+        ),
+      ],
     );
   }
 
@@ -133,9 +152,50 @@ class CustomNavbar extends StatelessWidget implements PreferredSizeWidget {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushReplacementNamed(context, '/');
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close dialog
+                
+                // Show loading indicator
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+
+                try {
+                  await UserManager.logout();
+                  
+                  // Close loading indicator
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                  
+                  // Call logout success callback if provided
+                  if (onLogoutSuccess != null) {
+                    onLogoutSuccess!();
+                  } else {
+                    // Navigate to login screen
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/',
+                      (route) => false,
+                    );
+                  }
+                } catch (e) {
+                  // Close loading indicator
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                  
+                  // Show error message
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Logout failed: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               child: const Text('Logout'),
             ),
