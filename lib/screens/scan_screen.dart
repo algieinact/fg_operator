@@ -382,114 +382,53 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildActionButtons() {
-    if (_scanState == ScanState.completed && _currentQty >= _capacity) {
-      // Show alternative buttons when slot is full
-      return Column(
+  // Always show the single scan button regardless of state
+  return SizedBox(
+    width: double.infinity,
+    child: ElevatedButton(
+      onPressed:
+          _isLoading ? null : () => _handleScan(_scanController.text),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF1E3A8A), // Navy blue
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        elevation: 2,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed:
-                  () => Navigator.pushReplacementNamed(context, '/main-menu'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981), // Green
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                elevation: 2,
+          if (_isLoading)
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.home, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Back to Main Menu',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: _resetScan,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF6B7280),
-                side: const BorderSide(color: Color(0xFF6B7280)),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.refresh, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Reset Scan',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
+            )
+          else
+            const Icon(Icons.qr_code_scanner, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            _isLoading
+                ? 'Processing...'
+                : (_scanState == ScanState.initial ||
+                    _scanState == ScanState.error)
+                ? 'Scan Slot'
+                : 'Scan ERP Code',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
-      );
-    } else {
-      // Show normal scan button
-      return SizedBox(
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed:
-              _isLoading ? null : () => _handleScan(_scanController.text),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1E3A8A), // Navy blue
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            elevation: 2,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_isLoading)
-                const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              else
-                const Icon(Icons.qr_code_scanner, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                _isLoading
-                    ? 'Processing...'
-                    : (_scanState == ScanState.initial ||
-                        _scanState == ScanState.error)
-                    ? 'Scan Slot'
-                    : 'Store Item',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-  }
+      ),
+    ),
+  );
+}
 
   void _handleScan(String scanValue) async {
     if (scanValue.trim().isEmpty) return;
@@ -518,53 +457,85 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _scanSlot(String slotName) async {
-    // Debug token status before making request
-    UserManager.debugTokenStatus();
+  // Debug token status before making request
+  UserManager.debugTokenStatus();
 
-    // Force refresh token from storage
-    await ApiService.refreshTokenFromStorage();
-    print(
-      'ScanScreen: Token after refresh: ${ApiService.getCurrentToken()?.substring(0, 10) ?? "null"}...',
-    );
+  // Force refresh token from storage
+  await ApiService.refreshTokenFromStorage();
+  print(
+    'ScanScreen: Token after refresh: ${ApiService.getCurrentToken()?.substring(0, 10) ?? "null"}...',
+  );
 
-    final response = await _apiService.scanSlotForPosting(slotName);
+  final response = await _apiService.scanSlotForPosting(slotName);
 
-    if (response['success'] == true && response['data'] != null) {
-      final data = response['data'];
-      final slot = data['slot'];
-      final item = data['item'];
-      final rack = data['rack'];
+  if (response['success'] == true && response['data'] != null) {
+    final data = response['data'];
+    final slot = data['slot'];
+    final item = data['item'];
+    final rack = data['rack'];
 
+    // Get current quantities
+    final currentQty = data['current_qty'] ?? 0;
+    final capacity = data['capacity'] ?? 0;
+
+    // Check if slot is already full
+    if (currentQty >= capacity) {
       // Improved image URL construction with better fallback logic
       String? imageUrl = _constructImageUrl(data);
 
-      print('ScanScreen: Final constructed image URL: $imageUrl');
-
       setState(() {
-        _scanState = ScanState.slotScanned;
+        _scanState = ScanState.completed; // Set to completed since slot is full
         _currentSlot = SlotInfo.fromJson(slot);
         _packageImageUrl = imageUrl;
-        _currentQty = data['current_qty'] ?? 0;
-        _capacity = data['capacity'] ?? 0;
+        _currentQty = currentQty;
+        _capacity = capacity;
 
         // Fill the read-only fields
         _partNoController.text = item?['part_no'] ?? '';
         _rackController.text = rack?['rack_name'] ?? '';
         _availableController.text = '$_currentQty/$_capacity';
 
-        // Clear scan field for next input
+        // Clear scan field
         _scanController.clear();
       });
 
-      _showSuccessMessage('Slot scanned successfully. Now scan ERP code.');
-    } else {
-      throw ApiException(
-        message: response['message'] ?? 'Failed to scan slot',
-        statusCode: 400,
-        data: response,
-      );
+      // Show slot full dialog immediately
+      _showSlotFullDialog();
+      
+      _showSuccessMessage('Slot $slotName is already full ($_currentQty/$_capacity).');
+      return;
     }
+
+    // Improved image URL construction with better fallback logic
+    String? imageUrl = _constructImageUrl(data);
+
+    print('ScanScreen: Final constructed image URL: $imageUrl');
+
+    setState(() {
+      _scanState = ScanState.slotScanned;
+      _currentSlot = SlotInfo.fromJson(slot);
+      _packageImageUrl = imageUrl;
+      _currentQty = currentQty;
+      _capacity = capacity;
+
+      // Fill the read-only fields
+      _partNoController.text = item?['part_no'] ?? '';
+      _rackController.text = rack?['rack_name'] ?? '';
+      _availableController.text = '$_currentQty/$_capacity';
+
+      // Clear scan field for next input
+      _scanController.clear();
+    });
+
+    _showSuccessMessage('Slot scanned successfully. Now scan ERP code.');
+  } else {
+    throw ApiException(
+      message: response['message'] ?? 'Failed to scan slot',
+      statusCode: 400,
+      data: response,
+    );
   }
+}
 
   String? _constructImageUrl(Map<String, dynamic> data) {
     // Priority order for image URL construction:
@@ -638,53 +609,61 @@ class _ScanScreenState extends State<ScanScreen> {
     return imageUrl;
   }
 
-  Future<void> _storeByErp(String erpCode) async {
-    if (_currentSlot == null) return;
+Future<void> _storeByErp(String erpCode) async {
+  if (_currentSlot == null) return;
 
-    final response = await _apiService.storeByErp(
-      erpCode: erpCode,
-      slotName: _currentSlot!.slotName,
-    );
+  final response = await _apiService.storeByErp(
+    erpCode: erpCode,
+    slotName: _currentSlot!.slotName,
+  );
 
-    if (response['success'] == true) {
-      final data = response['data'];
-      setState(() {
-        _scanState = ScanState.completed;
-        _currentQty = data['current_qty'] ?? _currentQty + 1;
-        _availableController.text = '$_currentQty/$_capacity';
-        _scanController.clear();
-      });
-
-      _showSuccessMessage(response['message'] ?? 'Item stored successfully');
-
-      // Check if slot is full
+  if (response['success'] == true) {
+    final data = response['data'];
+    setState(() {
+      // Update quantity first
+      _currentQty = data['current_qty'] ?? _currentQty + 1;
+      _availableController.text = '$_currentQty/$_capacity';
+      
+      // Only set to completed if slot is full, otherwise stay in slotScanned state
       if (_currentQty >= _capacity) {
-        _showSlotFullDialog();
-      }
-    } else {
-      // Handle specific error cases
-      final data = response['data'];
-      if (data != null && data['lot_no'] != null) {
-        throw ApiException(
-          message: response['message'] ?? 'Lot number already exists',
-          statusCode: 409,
-          data: response,
-        );
-      } else if (data != null && data['will_exceed_by'] != null) {
-        throw ApiException(
-          message: response['message'] ?? 'Slot capacity exceeded',
-          statusCode: 409,
-          data: response,
-        );
+        _scanState = ScanState.completed;
       } else {
-        throw ApiException(
-          message: response['message'] ?? 'Failed to store item',
-          statusCode: 400,
-          data: response,
-        );
+        _scanState = ScanState.slotScanned; // Keep in slotScanned state to allow more ERP scans
       }
+      
+      _scanController.clear();
+    });
+
+    _showSuccessMessage(response['message'] ?? 'Item stored successfully');
+
+    // Check if slot is full
+    if (_currentQty >= _capacity) {
+      _showSlotFullDialog();
+    }
+  } else {
+    // Handle specific error cases
+    final data = response['data'];
+    if (data != null && data['lot_no'] != null) {
+      throw ApiException(
+        message: response['message'] ?? 'Lot number already exists',
+        statusCode: 409,
+        data: response,
+      );
+    } else if (data != null && data['will_exceed_by'] != null) {
+      throw ApiException(
+        message: response['message'] ?? 'Slot capacity exceeded',
+        statusCode: 409,
+        data: response,
+      );
+    } else {
+      throw ApiException(
+        message: response['message'] ?? 'Failed to store item',
+        statusCode: 400,
+        data: response,
+      );
     }
   }
+}
 
   void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -697,41 +676,45 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   void _showSlotFullDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.orange),
-              SizedBox(width: 8),
-              Text('Slot Full'),
-            ],
-          ),
-          content: Text(
-            'Slot ${_currentSlot?.slotName} is now full ($_currentQty/$_capacity).\n\nWhat would you like to do next?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _resetScan();
-              },
-              child: const Text('Scan Another Slot'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Navigator.pushReplacementNamed(context, '/main-menu');
-              },
-              child: const Text('Back to Menu'),
-            ),
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Slot Full'),
           ],
-        );
-      },
-    );
-  }
+        ),
+        content: Text(
+          'Slot ${_currentSlot?.slotName} is full ($_currentQty/$_capacity).\n\nWhat would you like to do next?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _resetScan();
+            },
+            child: const Text('Scan Another Slot'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.pushReplacementNamed(context, '/main-menu');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E3A8A),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Back to Menu'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
   void _resetScan() {
     setState(() {
