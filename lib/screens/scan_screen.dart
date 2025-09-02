@@ -29,6 +29,9 @@ class _ScanScreenState extends State<ScanScreen> {
   int _currentQty = 0;
   int _capacity = 0;
 
+  // Define imageBaseUrl to match the API server
+  static const String imageBaseUrl = 'http://10.1.101.90:8000/storage/';
+
   @override
   void dispose() {
     _partNoController.dispose();
@@ -168,83 +171,35 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildImageSection() {
-    // Debug current image URL
     print('ScanScreen: _buildImageSection called with URL: $_packageImageUrl');
 
-    if (_packageImageUrl != null) {
+    if (_packageImageUrl != null && _packageImageUrl!.isNotEmpty) {
       return Column(
         children: [
-          // Debug info (temporary)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              border: Border.all(color: Colors.blue.shade200),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              'Image URL: $_packageImageUrl',
-              style: TextStyle(
-                color: Colors.blue.shade700,
-                fontSize: 10,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ),
-          // Image
+          // Debug info (you can remove this in production)
+          // Container(
+          //   width: double.infinity,
+          //   padding: const EdgeInsets.all(8),
+          //   margin: const EdgeInsets.only(bottom: 8),
+          //   decoration: BoxDecoration(
+          //     color: Colors.blue.shade50,
+          //     border: Border.all(color: Colors.blue.shade200),
+          //     borderRadius: BorderRadius.circular(4),
+          //   ),
+          //   child: Text(
+          //     'Image URL: $_packageImageUrl',
+          //     style: TextStyle(
+          //       color: Colors.blue.shade700,
+          //       fontSize: 10,
+          //       fontFamily: 'monospace',
+          //     ),
+          //   ),
+          // ),
+          // Image with fallback to Image.network if CachedNetworkImage fails
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(6),
-              child: CachedNetworkImage(
-                imageUrl: _packageImageUrl!,
-                fit: BoxFit.contain,
-                width: double.infinity,
-                height: double.infinity,
-                placeholder:
-                    (context, url) =>
-                        const Center(child: CircularProgressIndicator()),
-                errorWidget:
-                    (context, url, error) => Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.broken_image_outlined,
-                            size: 64,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Failed to load image',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFF6B7280),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'URL: $url',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF9CA3AF),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Error: $error',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF9CA3AF),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-              ),
+              child: _buildImageWidget(),
             ),
           ),
         ],
@@ -273,6 +228,99 @@ class _ScanScreenState extends State<ScanScreen> {
         ),
       );
     }
+  }
+
+  Widget _buildImageWidget() {
+    return Image.network(
+      _packageImageUrl!,
+      fit: BoxFit.contain,
+      width: double.infinity,
+      height: double.infinity,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Loading image...',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        print('ScanScreen: Image load error: $error');
+        print('ScanScreen: Failed URL: $_packageImageUrl');
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.broken_image_outlined,
+                size: 64,
+                color: Color(0xFF9CA3AF),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Failed to load image',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'URL: $_packageImageUrl',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF9CA3AF),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Error: $error',
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFF9CA3AF),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    // Force rebuild to retry image loading
+                  });
+                },
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E3A8A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildScanField() {
@@ -506,30 +554,10 @@ class _ScanScreenState extends State<ScanScreen> {
       final item = data['item'];
       final rack = data['rack'];
 
-      // Debug image URL parsing
-      print('ScanScreen: Raw data: $data');
-      print('ScanScreen: packaging_image_url: ${data['packaging_image_url']}');
-      print('ScanScreen: package_image: ${data['package_image']}');
+      // Improved image URL construction with better fallback logic
+      String? imageUrl = _constructImageUrl(data);
 
-      // Try multiple image URL sources
-      String? imageUrl;
-      if (data['packaging_image_url'] != null &&
-          data['packaging_image_url'].toString().isNotEmpty) {
-        imageUrl = data['packaging_image_url'];
-        print('ScanScreen: Using packaging_image_url: $imageUrl');
-      } else if (data['package_image'] != null &&
-          data['package_image'].toString().isNotEmpty) {
-        imageUrl = data['package_image'];
-        print('ScanScreen: Using package_image: $imageUrl');
-      } else if (data['item'] != null &&
-          data['item']['packaging_img'] != null) {
-        // Fallback to item.packaging_img and construct full URL
-        final baseUrl = 'http://10.1.121.99:8000/storage/';
-        imageUrl = baseUrl + data['item']['packaging_img'];
-        print('ScanScreen: Constructed URL from packaging_img: $imageUrl');
-      }
-
-      print('ScanScreen: Final image URL: $imageUrl');
+      print('ScanScreen: Final constructed image URL: $imageUrl');
 
       setState(() {
         _scanState = ScanState.slotScanned;
@@ -555,6 +583,76 @@ class _ScanScreenState extends State<ScanScreen> {
         data: response,
       );
     }
+  }
+
+  String? _constructImageUrl(Map<String, dynamic> data) {
+    // Priority order for image URL construction:
+    // 1. Direct full URL from packaging_image_url
+    // 2. Direct full URL from package_image  
+    // 3. Construct from item.packaging_img
+    // 4. Construct from item.part_img as fallback
+
+    String? imageUrl;
+
+    // Check for complete URLs first
+    if (data['packaging_image_url'] != null &&
+        data['packaging_image_url'].toString().isNotEmpty) {
+      final url = data['packaging_image_url'].toString();
+      if (url.startsWith('http')) {
+        imageUrl = url;
+        print('ScanScreen: Using direct packaging_image_url: $imageUrl');
+      } else {
+        imageUrl = imageBaseUrl + url;
+        print('ScanScreen: Constructed from packaging_image_url: $imageUrl');
+      }
+    } else if (data['package_image'] != null &&
+        data['package_image'].toString().isNotEmpty) {
+      final url = data['package_image'].toString();
+      if (url.startsWith('http')) {
+        imageUrl = url;
+        print('ScanScreen: Using direct package_image: $imageUrl');
+      } else {
+        imageUrl = imageBaseUrl + url;
+        print('ScanScreen: Constructed from package_image: $imageUrl');
+      }
+    } else if (data['item'] != null) {
+      final item = data['item'];
+      
+      // Try packaging_img first
+      if (item['packaging_img'] != null &&
+          item['packaging_img'].toString().isNotEmpty) {
+        final imgPath = item['packaging_img'].toString();
+        // Remove leading slash if present to avoid double slashes
+        final cleanPath = imgPath.startsWith('/') ? imgPath.substring(1) : imgPath;
+        imageUrl = imageBaseUrl + cleanPath;
+        print('ScanScreen: Constructed from item.packaging_img: $imageUrl');
+      } 
+      // Fallback to part_img
+      else if (item['part_img'] != null &&
+          item['part_img'].toString().isNotEmpty) {
+        final imgPath = item['part_img'].toString();
+        final cleanPath = imgPath.startsWith('/') ? imgPath.substring(1) : imgPath;
+        imageUrl = imageBaseUrl + cleanPath;
+        print('ScanScreen: Fallback to item.part_img: $imageUrl');
+      }
+    }
+
+    // Validate final URL
+    if (imageUrl != null) {
+      // Ensure URL is properly formatted
+      if (!imageUrl.startsWith('http')) {
+        imageUrl = imageBaseUrl + imageUrl;
+      }
+      
+      // Clean up any double slashes in path (but preserve http://)
+      imageUrl = imageUrl.replaceAll(RegExp(r'(?<!:)//+'), '/');
+      
+      print('ScanScreen: Final validated URL: $imageUrl');
+    } else {
+      print('ScanScreen: No valid image URL found in response data');
+    }
+
+    return imageUrl;
   }
 
   Future<void> _storeByErp(String erpCode) async {

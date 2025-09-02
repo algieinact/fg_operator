@@ -42,3 +42,8 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0")
+    implementation("com.google.android.material:material:1.12.0")
+}
