@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/custom_navbar.dart';
 import '../services/api_service.dart';
 import '../services/user_manager.dart';
@@ -29,8 +28,7 @@ class _ScanScreenState extends State<ScanScreen> {
   int _currentQty = 0;
   int _capacity = 0;
 
-  // Define imageBaseUrl to match the API server
-  static const String imageBaseUrl = 'http://10.1.101.90:8000/storage/';
+  // Use imageBaseUrl from ApiService to ensure consistency
 
   @override
   void dispose() {
@@ -39,6 +37,11 @@ class _ScanScreenState extends State<ScanScreen> {
     _scanController.dispose();
     _availableController.dispose();
     super.dispose();
+  }
+
+  String _getCurrentTimeString() {
+    final now = DateTime.now();
+    return "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -63,20 +66,9 @@ class _ScanScreenState extends State<ScanScreen> {
                     color: Colors.black87,
                   ),
                 ),
-                StreamBuilder<DateTime>(
-                  stream: Stream.periodic(
-                    const Duration(seconds: 1),
-                    (_) => DateTime.now(),
-                  ),
-                  builder: (context, snapshot) {
-                    final now = snapshot.data ?? DateTime.now();
-                    final formatted =
-                        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
-                    return Text(
-                      formatted,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    );
-                  },
+                Text(
+                  _getCurrentTimeString(),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
               ],
             ),
@@ -103,7 +95,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildInputField(
-                    'Available',
+                    'Current',
                     _availableController,
                     readOnly: true,
                   ),
@@ -243,18 +235,16 @@ class _ScanScreenState extends State<ScanScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                    : null,
+                value:
+                    loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
               ),
               const SizedBox(height: 16),
               const Text(
                 'Loading image...',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF6B7280),
-                ),
+                style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
               ),
             ],
           ),
@@ -275,27 +265,18 @@ class _ScanScreenState extends State<ScanScreen> {
               const SizedBox(height: 16),
               const Text(
                 'Failed to load image',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF6B7280),
-                ),
+                style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
               ),
               const SizedBox(height: 8),
               Text(
                 'URL: $_packageImageUrl',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF9CA3AF),
-                ),
+                style: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               Text(
                 'Error: $error',
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Color(0xFF9CA3AF),
-                ),
+                style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF)),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -569,7 +550,7 @@ class _ScanScreenState extends State<ScanScreen> {
         // Fill the read-only fields
         _partNoController.text = item?['part_no'] ?? '';
         _rackController.text = rack?['rack_name'] ?? '';
-        _availableController.text = '${_capacity - _currentQty}/$_capacity';
+        _availableController.text = '$_currentQty/$_capacity';
 
         // Clear scan field for next input
         _scanController.clear();
@@ -588,7 +569,7 @@ class _ScanScreenState extends State<ScanScreen> {
   String? _constructImageUrl(Map<String, dynamic> data) {
     // Priority order for image URL construction:
     // 1. Direct full URL from packaging_image_url
-    // 2. Direct full URL from package_image  
+    // 2. Direct full URL from package_image
     // 3. Construct from item.packaging_img
     // 4. Construct from item.part_img as fallback
 
@@ -602,7 +583,7 @@ class _ScanScreenState extends State<ScanScreen> {
         imageUrl = url;
         print('ScanScreen: Using direct packaging_image_url: $imageUrl');
       } else {
-        imageUrl = imageBaseUrl + url;
+        imageUrl = ApiService.imageBaseUrl + url;
         print('ScanScreen: Constructed from packaging_image_url: $imageUrl');
       }
     } else if (data['package_image'] != null &&
@@ -612,27 +593,29 @@ class _ScanScreenState extends State<ScanScreen> {
         imageUrl = url;
         print('ScanScreen: Using direct package_image: $imageUrl');
       } else {
-        imageUrl = imageBaseUrl + url;
+        imageUrl = ApiService.imageBaseUrl + url;
         print('ScanScreen: Constructed from package_image: $imageUrl');
       }
     } else if (data['item'] != null) {
       final item = data['item'];
-      
+
       // Try packaging_img first
       if (item['packaging_img'] != null &&
           item['packaging_img'].toString().isNotEmpty) {
         final imgPath = item['packaging_img'].toString();
         // Remove leading slash if present to avoid double slashes
-        final cleanPath = imgPath.startsWith('/') ? imgPath.substring(1) : imgPath;
-        imageUrl = imageBaseUrl + cleanPath;
+        final cleanPath =
+            imgPath.startsWith('/') ? imgPath.substring(1) : imgPath;
+        imageUrl = ApiService.imageBaseUrl + cleanPath;
         print('ScanScreen: Constructed from item.packaging_img: $imageUrl');
-      } 
+      }
       // Fallback to part_img
       else if (item['part_img'] != null &&
           item['part_img'].toString().isNotEmpty) {
         final imgPath = item['part_img'].toString();
-        final cleanPath = imgPath.startsWith('/') ? imgPath.substring(1) : imgPath;
-        imageUrl = imageBaseUrl + cleanPath;
+        final cleanPath =
+            imgPath.startsWith('/') ? imgPath.substring(1) : imgPath;
+        imageUrl = ApiService.imageBaseUrl + cleanPath;
         print('ScanScreen: Fallback to item.part_img: $imageUrl');
       }
     }
@@ -641,12 +624,12 @@ class _ScanScreenState extends State<ScanScreen> {
     if (imageUrl != null) {
       // Ensure URL is properly formatted
       if (!imageUrl.startsWith('http')) {
-        imageUrl = imageBaseUrl + imageUrl;
+        imageUrl = ApiService.imageBaseUrl + imageUrl;
       }
-      
+
       // Clean up any double slashes in path (but preserve http://)
       imageUrl = imageUrl.replaceAll(RegExp(r'(?<!:)//+'), '/');
-      
+
       print('ScanScreen: Final validated URL: $imageUrl');
     } else {
       print('ScanScreen: No valid image URL found in response data');
@@ -668,7 +651,7 @@ class _ScanScreenState extends State<ScanScreen> {
       setState(() {
         _scanState = ScanState.completed;
         _currentQty = data['current_qty'] ?? _currentQty + 1;
-        _availableController.text = '${_capacity - _currentQty}/$_capacity';
+        _availableController.text = '$_currentQty/$_capacity';
         _scanController.clear();
       });
 

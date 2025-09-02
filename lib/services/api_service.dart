@@ -3,8 +3,16 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String _baseUrl = 'http://10.1.101.90:8000/api';
-  static const String imageBaseUrl = 'http://10.1.101.90:8000/storage/';
+  // Fallback URLs for different environments
+  static const String _baseUrlLocal = 'http://10.1.101.90:8000/api';
+  static const String _baseUrlRemote = 'http://fg-store.ns1.sanoh.co.id/api';
+  static const String _imageBaseUrlLocal = 'http://10.1.101.90:8000/storage/';
+  static const String _imageBaseUrlRemote =
+      'http://fg-store.ns1.sanoh.co.id/storage/';
+
+  // Current active URLs (can be switched dynamically)
+  static String _baseUrl = _baseUrlRemote;
+  static String imageBaseUrl = _imageBaseUrlRemote;
   static String? _token;
 
   // Singleton pattern
@@ -62,6 +70,40 @@ class ApiService {
 
   // Check if token exists
   static bool get hasToken => _token != null && _token!.isNotEmpty;
+
+  // Test connection to current URL
+  static Future<bool> testConnection() async {
+    try {
+      final url = Uri.parse('$_baseUrl/debug/simple');
+      final response = await http
+          .get(url)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw Exception('Connection timeout'),
+          );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('ApiService: Connection test failed: $e');
+      return false;
+    }
+  }
+
+  // Switch to local URL
+  static void switchToLocal() {
+    _baseUrl = _baseUrlLocal;
+    imageBaseUrl = _imageBaseUrlLocal;
+    print('ApiService: Switched to local URL: $_baseUrl');
+  }
+
+  // Switch to remote URL
+  static void switchToRemote() {
+    _baseUrl = _baseUrlRemote;
+    imageBaseUrl = _imageBaseUrlRemote;
+    print('ApiService: Switched to remote URL: $_baseUrl');
+  }
+
+  // Get current base URL
+  static String get currentBaseUrl => _baseUrl;
 
   // Force refresh token from SharedPreferences
   static Future<void> refreshTokenFromStorage() async {
@@ -144,24 +186,60 @@ class ApiService {
 
       switch (method.toUpperCase()) {
         case 'GET':
-          response = await http.get(url, headers: headers);
+          response = await http
+              .get(url, headers: headers)
+              .timeout(
+                const Duration(seconds: 30),
+                onTimeout: () {
+                  throw Exception(
+                    'Request timeout: Unable to connect to server',
+                  );
+                },
+              );
           break;
         case 'POST':
-          response = await http.post(
-            url,
-            headers: headers,
-            body: body != null ? jsonEncode(body) : null,
-          );
+          response = await http
+              .post(
+                url,
+                headers: headers,
+                body: body != null ? jsonEncode(body) : null,
+              )
+              .timeout(
+                const Duration(seconds: 30),
+                onTimeout: () {
+                  throw Exception(
+                    'Request timeout: Unable to connect to server',
+                  );
+                },
+              );
           break;
         case 'PUT':
-          response = await http.put(
-            url,
-            headers: headers,
-            body: body != null ? jsonEncode(body) : null,
-          );
+          response = await http
+              .put(
+                url,
+                headers: headers,
+                body: body != null ? jsonEncode(body) : null,
+              )
+              .timeout(
+                const Duration(seconds: 30),
+                onTimeout: () {
+                  throw Exception(
+                    'Request timeout: Unable to connect to server',
+                  );
+                },
+              );
           break;
         case 'DELETE':
-          response = await http.delete(url, headers: headers);
+          response = await http
+              .delete(url, headers: headers)
+              .timeout(
+                const Duration(seconds: 30),
+                onTimeout: () {
+                  throw Exception(
+                    'Request timeout: Unable to connect to server',
+                  );
+                },
+              );
           break;
         default:
           throw Exception('Unsupported HTTP method: $method');
@@ -190,10 +268,24 @@ class ApiService {
       }
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error: ${e.toString()}',
-        statusCode: 0,
-      );
+
+      // Handle specific network errors
+      String errorMessage;
+      if (e.toString().contains('Failed to fetch') ||
+          e.toString().contains('ClientException')) {
+        errorMessage =
+            'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.';
+      } else if (e.toString().contains('timeout')) {
+        errorMessage = 'Koneksi timeout. Server tidak merespons.';
+      } else if (e.toString().contains('SocketException')) {
+        errorMessage =
+            'Tidak dapat terhubung ke server. Periksa koneksi jaringan.';
+      } else {
+        errorMessage = 'Network error: ${e.toString()}';
+      }
+
+      print('ApiService: Network error details: $e');
+      throw ApiException(message: errorMessage, statusCode: 0);
     }
   }
 
@@ -201,6 +293,7 @@ class ApiService {
   Future<Map<String, dynamic>> login(String username, String password) async {
     try {
       print('ApiService: Attempting login for username: $username');
+      print('ApiService: Using URL: $_baseUrl');
 
       final response = await _request(
         'POST',
@@ -237,7 +330,41 @@ class ApiService {
       return response;
     } catch (e) {
       print('ApiService: Login error: $e');
-      rethrow;
+
+      // If current URL fails, try the other URL as fallback
+      if (_baseUrl == _baseUrlRemote) {
+        print('ApiService: Remote URL failed, trying local URL...');
+        switchToLocal();
+        try {
+          final response = await _request(
+            'POST',
+            '/auth/login',
+            body: {'username': username, 'password': password},
+          );
+          print('ApiService: Login successful with local URL');
+          return response;
+        } catch (localError) {
+          print('ApiService: Local URL also failed: $localError');
+          switchToRemote(); // Switch back to remote
+          rethrow; // Throw the original error
+        }
+      } else {
+        print('ApiService: Local URL failed, trying remote URL...');
+        switchToRemote();
+        try {
+          final response = await _request(
+            'POST',
+            '/auth/login',
+            body: {'username': username, 'password': password},
+          );
+          print('ApiService: Login successful with remote URL');
+          return response;
+        } catch (remoteError) {
+          print('ApiService: Remote URL also failed: $remoteError');
+          switchToLocal(); // Switch back to local
+          rethrow; // Throw the original error
+        }
+      }
     }
   }
 

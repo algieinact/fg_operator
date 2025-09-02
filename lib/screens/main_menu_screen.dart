@@ -4,6 +4,11 @@ import '../widgets/custom_navbar.dart';
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
 
+  String _getCurrentTimeString() {
+    final now = DateTime.now();
+    return "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,20 +31,9 @@ class MainMenuScreen extends StatelessWidget {
                     color: Colors.black87,
                   ),
                 ),
-                StreamBuilder<DateTime>(
-                  stream: Stream.periodic(
-                    const Duration(seconds: 1),
-                    (_) => DateTime.now(),
-                  ),
-                  builder: (context, snapshot) {
-                    final now = snapshot.data ?? DateTime.now();
-                    final formatted =
-                        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}";
-                    return Text(
-                      formatted,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                    );
-                  },
+                Text(
+                  _getCurrentTimeString(),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
               ],
             ),
