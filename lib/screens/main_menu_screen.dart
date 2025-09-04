@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_navbar.dart';
+import '../services/user_manager.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
@@ -69,6 +70,21 @@ class MainMenuScreen extends StatelessWidget {
                       );
                     },
                   ),
+                  const SizedBox(height: 16),
+
+                  // Scan History (operators only)
+                  if (UserManager.currentUser?.roleName?.toLowerCase() ==
+                          'operator' ||
+                      UserManager.currentUser?.roleId == 3)
+                    _buildMenuCard(
+                      context,
+                      title: 'Scan History',
+                      icon: Icons.history,
+                      iconColor: const Color(0xFF3B82F6), // Blue
+                      onTap: () {
+                        Navigator.pushNamed(context, '/scan-history');
+                      },
+                    ),
                 ],
               ),
             ),

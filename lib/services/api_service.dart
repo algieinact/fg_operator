@@ -4,15 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Fallback URLs for different environments
-  static const String _baseUrlLocal = 'http://10.1.101.90:8000/api';
+  static const String _baseUrlLocal = 'http://127.0.0.1:8000/api';
   static const String _baseUrlRemote = 'http://fg-store.ns1.sanoh.co.id/api';
-  static const String _imageBaseUrlLocal = 'http://10.1.101.90:8000/storage/';
+  static const String _imageBaseUrlLocal = 'http://127.0.0.1:8000/storage/';
   static const String _imageBaseUrlRemote =
       'http://fg-store.ns1.sanoh.co.id/storage/';
 
   // Current active URLs (can be switched dynamically)
-  static String _baseUrl = _baseUrlRemote;
-  static String imageBaseUrl = _imageBaseUrlRemote;
+  static String _baseUrl = _baseUrlLocal;
+  static String imageBaseUrl = _imageBaseUrlLocal;
   static String? _token;
 
   // Singleton pattern
@@ -75,9 +75,7 @@ class ApiService {
   static Future<bool> testConnection() async {
     try {
       final url = Uri.parse('$_baseUrl/debug/simple');
-      final response = await http
-          .get(url)
-          .timeout(
+      final response = await http.get(url).timeout(
             const Duration(seconds: 10),
             onTimeout: () => throw Exception('Connection timeout'),
           );
@@ -186,60 +184,56 @@ class ApiService {
 
       switch (method.toUpperCase()) {
         case 'GET':
-          response = await http
-              .get(url, headers: headers)
-              .timeout(
-                const Duration(seconds: 30),
-                onTimeout: () {
-                  throw Exception(
-                    'Request timeout: Unable to connect to server',
-                  );
-                },
+          response = await http.get(url, headers: headers).timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception(
+                'Request timeout: Unable to connect to server',
               );
+            },
+          );
           break;
         case 'POST':
           response = await http
               .post(
-                url,
-                headers: headers,
-                body: body != null ? jsonEncode(body) : null,
-              )
+            url,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
               .timeout(
-                const Duration(seconds: 30),
-                onTimeout: () {
-                  throw Exception(
-                    'Request timeout: Unable to connect to server',
-                  );
-                },
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception(
+                'Request timeout: Unable to connect to server',
               );
+            },
+          );
           break;
         case 'PUT':
           response = await http
               .put(
-                url,
-                headers: headers,
-                body: body != null ? jsonEncode(body) : null,
-              )
+            url,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
               .timeout(
-                const Duration(seconds: 30),
-                onTimeout: () {
-                  throw Exception(
-                    'Request timeout: Unable to connect to server',
-                  );
-                },
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception(
+                'Request timeout: Unable to connect to server',
               );
+            },
+          );
           break;
         case 'DELETE':
-          response = await http
-              .delete(url, headers: headers)
-              .timeout(
-                const Duration(seconds: 30),
-                onTimeout: () {
-                  throw Exception(
-                    'Request timeout: Unable to connect to server',
-                  );
-                },
+          response = await http.delete(url, headers: headers).timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw Exception(
+                'Request timeout: Unable to connect to server',
               );
+            },
+          );
           break;
         default:
           throw Exception('Unsupported HTTP method: $method');
@@ -455,6 +449,15 @@ class ApiService {
 
   Future<Map<String, dynamic>> getDashboard() async {
     return await _request('GET', '/operator/dashboard');
+  }
+
+  // Operator scan history (store/pull) logs
+  Future<Map<String, dynamic>> getOperatorScanHistory({
+    int page = 1,
+    int perPage = 20,
+  }) async {
+    final query = '?page=$page&per_page=$perPage';
+    return await _request('GET', '/operator/scan-history$query');
   }
 
   // Debug endpoints

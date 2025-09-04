@@ -6,6 +6,7 @@ import 'screens/login_screen.dart';
 import 'screens/main_menu_screen.dart';
 import 'screens/scan_screen.dart';
 import 'screens/NetworkDebugScreen.dart';
+import 'screens/scan_history_screen.dart';
 
 void main() async {
   try {
@@ -52,6 +53,7 @@ class MyApp extends StatelessWidget {
         '/main-menu': (context) => const MainMenuScreen(),
         '/scan': (context) => const ScanScreen(),
         '/network-debug': (context) => const NetworkDebugScreen(),
+        '/scan-history': (context) => const ScanHistoryScreen(),
       },
       debugShowCheckedModeBanner: false,
     );
