@@ -11,8 +11,8 @@ class ApiService {
       'http://fg-store.ns1.sanoh.co.id/storage/';
 
   // Current active URLs (can be switched dynamically)
-  static String _baseUrl = _baseUrlLocal;
-  static String imageBaseUrl = _imageBaseUrlLocal;
+  static String _baseUrl = _baseUrlRemote;
+  static String imageBaseUrl = _imageBaseUrlRemote;
   static String? _token;
 
   // Singleton pattern
