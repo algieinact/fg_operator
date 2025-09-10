@@ -88,7 +88,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildInputField(
-                    'Rack',
+                    'Slot',
                     _rackController,
                     readOnly: true,
                   ),
@@ -522,7 +522,6 @@ class _ScanScreenState extends State<ScanScreen> {
       final data = response['data'];
       final slot = data['slot'];
       final item = data['item'];
-      final rack = data['rack'];
 
       // Get current quantities
       final currentQty = data['current_qty'] ?? 0;
@@ -544,7 +543,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
           // Fill the read-only fields
           _partNoController.text = item?['part_no'] ?? '';
-          _rackController.text = rack?['rack_name'] ?? '';
+          _rackController.text = slot?['slot_name'] ?? '';
           _availableController.text = '$_currentQty/$_capacity';
 
           // Clear scan field
@@ -572,7 +571,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
         // Fill the read-only fields
         _partNoController.text = item?['part_no'] ?? '';
-        _rackController.text = rack?['rack_name'] ?? '';
+        _rackController.text = slot?['slot_name'] ?? '';
         _availableController.text = '$_currentQty/$_capacity';
 
         // Clear scan field for next input
