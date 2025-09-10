@@ -265,22 +265,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // Test navigation button (for debugging)
                 if (!_isLoading)
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pushReplacementNamed('/main-menu');
-                    },
-                    child: const Text(
-                      'Skip Login (Debug)',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ),
+                  // TextButton(
+                  //   onPressed: () {
+                  //     Navigator.of(context).pushReplacementNamed('/main-menu');
+                  //   },
+                  //   child: const Text(
+                  //     'Skip Login (Debug)',
+                  //     style: TextStyle(color: Colors.grey),
+                  //   ),
+                  // ),
 
-                // Version info
-                Text(
-                  'Warehouse Management System v1.0',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  textAlign: TextAlign.center,
-                ),
+                  // Version info
+                  Text(
+                    'Warehouse Management System v1.3',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    textAlign: TextAlign.center,
+                  ),
               ],
             ),
           ),
